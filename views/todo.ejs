@@ -3,7 +3,7 @@
 
 <ul>
      <li ng-repeat = "task in tasks">
-       {{task.title}}
+       <button ng-click="deleteHandler(task.id)">delete</button> {{task.title}}  
      </li>
 </ul>
 
@@ -16,15 +16,30 @@
 </form>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.js"> </script>
-<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.29/angular.min.js">
-</script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.29/angular.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.min.js"></script>
 
 <script>
 
 function taskController($scope) {
-io.socket.on("connect",function(){
-  
-   io.socket.get("/task",function(tasks){
+
+   io.socket.on("connect",function(){
+   
+       io.socket.on("task",function (result){
+           if(result.verb === "destroyed"){
+               var index = _.findIndex($scope.tasks, {
+                   id: result.id
+               });
+                  $scope.tasks.splice(index, 1);
+               } else {
+                console.log(result);
+                $scope.tasks.push(result.data);
+               }
+               
+               $scope.$apply();
+          });
+       
+      io.socket.get("/task",function(tasks){
        
          $scope.tasks = tasks;
          $scope.$apply();
@@ -40,27 +55,29 @@ $scope.submitHandler =function(){
     title:$scope.task
     }, function (result){
      $scope.tasks.push(result);
+     $scope.task = "";
      $scope.$apply();
      })
+   };
+$scope.deleteHandler = function (id) {
+    io.socket.delete("/task", {
+       id:  id
+     
+    },function (result){
+       var index = _.findIndex($scope.tasks,{
+         id : result.id
+     });
+         $scope.tasks.splice(index, 1);
+         $scope.$apply();
+         console.log(result);
+      });
    };
 
 }
 
-
-
-
   
 $("form").on("submit" , function(e){
 
-  $.post("/task/create",{
-  
-     title : $("input[name=title]").val()
-     
-     }, function(result){
-         window.location.reload();
-         
-     })
-     
      return false;
      
 });
